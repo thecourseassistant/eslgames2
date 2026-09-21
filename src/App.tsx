@@ -160,12 +160,12 @@ export default function App() {
     if (gameState !== 'PLAYING') return;
 
     const gameLoop = () => {
-      // Update scope position from Virtual Joystick
+      // Update scope position ONLY from Virtual Joystick
       if (isJoystickActiveRef.current) {
         const vx = joystickVectorRef.current.x;
         const vy = joystickVectorRef.current.y;
         if (vx !== 0 || vy !== 0) {
-          const speed = 1.15;
+          const speed = 1.35;
           setScopePos((prev) => {
             const nextX = Math.max(5, Math.min(95, prev.x + vx * speed));
             const nextY = Math.max(5, Math.min(95, prev.y + vy * speed));
@@ -257,17 +257,6 @@ export default function App() {
       }
     };
   }, [gameState, finishGame]);
-
-  // Aim handler with desktop mouse (only tracks mouse movement; never fires)
-  const handleAimPointer = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!battlefieldRef.current) return;
-    if (e.pointerType === 'mouse') {
-      const rect = battlefieldRef.current.getBoundingClientRect();
-      const pctX = Math.max(5, Math.min(95, ((e.clientX - rect.left) / rect.width) * 100));
-      const pctY = Math.max(5, Math.min(95, ((e.clientY - rect.top) / rect.height) * 100));
-      setScopePos({ x: pctX, y: pctY });
-    }
-  };
 
   // Reload handler
   const handleReload = () => {
@@ -524,8 +513,7 @@ export default function App() {
             <div
               ref={battlefieldRef}
               id="sniper-battlefield"
-              onPointerMove={handleAimPointer}
-              className="flex-1 min-h-0 relative w-full overflow-hidden cursor-crosshair touch-none select-none bg-black"
+              className="flex-1 min-h-0 relative w-full overflow-hidden touch-none select-none bg-black"
             >
               {/* Background PUBG Landscape Layer */}
               <div

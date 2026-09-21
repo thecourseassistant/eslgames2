@@ -140,76 +140,217 @@ class SoundManager {
         this.ctx.resume();
       }
       const ctx = this.ctx;
-      const t = ctx.currentTime;
 
-      // 1. Mag Release & Slide Eject (0ms)
-      const osc1 = ctx.createOscillator();
-      const gain1 = ctx.createGain();
-      osc1.type = 'triangle';
-      osc1.frequency.setValueAtTime(420, t);
-      osc1.frequency.exponentialRampToValueAtTime(160, t + 0.14);
-      gain1.gain.setValueAtTime(0.5, t);
-      gain1.gain.exponentialRampToValueAtTime(0.01, t + 0.14);
-      osc1.connect(gain1);
-      gain1.connect(ctx.destination);
-      osc1.start(t);
-      osc1.stop(t + 0.14);
-
-      // 2. New Magazine Slam / Click In (300ms)
-      setTimeout(() => {
-        if (!ctx) return;
-        const t2 = ctx.currentTime;
-        const osc2 = ctx.createOscillator();
-        const gain2 = ctx.createGain();
-        osc2.type = 'sawtooth';
-        osc2.frequency.setValueAtTime(520, t2);
-        osc2.frequency.exponentialRampToValueAtTime(880, t2 + 0.12);
-        gain2.gain.setValueAtTime(0.6, t2);
-        gain2.gain.exponentialRampToValueAtTime(0.01, t2 + 0.15);
-        osc2.connect(gain2);
-        gain2.connect(ctx.destination);
-        osc2.start(t2);
-        osc2.stop(t2 + 0.15);
-
-        // Metallic resonance
-        const filter = ctx.createBiquadFilter();
-        filter.type = 'bandpass';
-        filter.frequency.setValueAtTime(1200, t2);
-        filter.Q.setValueAtTime(3, t2);
-        const oscRes = ctx.createOscillator();
-        const gainRes = ctx.createGain();
-        oscRes.type = 'sine';
-        oscRes.frequency.setValueAtTime(350, t2);
-        gainRes.gain.setValueAtTime(0.3, t2);
-        gainRes.gain.exponentialRampToValueAtTime(0.01, t2 + 0.18);
-        oscRes.connect(filter);
-        filter.connect(gainRes);
-        gainRes.connect(ctx.destination);
-        oscRes.start(t2);
-        oscRes.stop(t2 + 0.18);
-      }, 300);
-
-      // 3. Heavy Sniper Bolt Rack & Chamber Snap (680ms)
-      setTimeout(() => {
-        if (!ctx) return;
-        const t3 = ctx.currentTime;
-        const oscBolt = ctx.createOscillator();
-        const gainBolt = ctx.createGain();
-        oscBolt.type = 'square';
-        oscBolt.frequency.setValueAtTime(280, t3);
-        oscBolt.frequency.exponentialRampToValueAtTime(650, t3 + 0.08);
-        oscBolt.frequency.exponentialRampToValueAtTime(180, t3 + 0.22);
-        gainBolt.gain.setValueAtTime(0.55, t3);
-        gainBolt.gain.exponentialRampToValueAtTime(0.01, t3 + 0.22);
-        oscBolt.connect(gainBolt);
-        gainBolt.connect(ctx.destination);
-        oscBolt.start(t3);
-        oscBolt.stop(t3 + 0.22);
-
-        if (navigator.vibrate) {
-          navigator.vibrate([20, 30, 40]);
+      // Helper to generate custom noise buffer
+      const getNoise = (duration: number) => {
+        const bufferSize = Math.max(1, Math.floor(ctx.sampleRate * duration));
+        const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) {
+          data[i] = Math.random() * 2 - 1;
         }
-      }, 680);
+        const source = ctx.createBufferSource();
+        source.buffer = buffer;
+        return source;
+      };
+
+      const now = ctx.currentTime;
+
+      // ==========================================
+      // 1. MAGAZINE RELEASE & DROP (t = 0.0s)
+      // ==========================================
+      // Latch click
+      const latchOsc = ctx.createOscillator();
+      const latchGain = ctx.createGain();
+      latchOsc.type = 'triangle';
+      latchOsc.frequency.setValueAtTime(1400, now);
+      latchOsc.frequency.exponentialRampToValueAtTime(350, now + 0.06);
+      latchGain.gain.setValueAtTime(0.45, now);
+      latchGain.gain.exponentialRampToValueAtTime(0.01, now + 0.06);
+      latchOsc.connect(latchGain);
+      latchGain.connect(ctx.destination);
+      latchOsc.start(now);
+      latchOsc.stop(now + 0.06);
+
+      // Mag sliding out friction
+      const magOutNoise = getNoise(0.12);
+      const magOutFilter = ctx.createBiquadFilter();
+      magOutFilter.type = 'bandpass';
+      magOutFilter.frequency.setValueAtTime(1600, now);
+      magOutFilter.frequency.exponentialRampToValueAtTime(450, now + 0.12);
+      magOutFilter.Q.value = 3.5;
+      const magOutGain = ctx.createGain();
+      magOutGain.gain.setValueAtTime(0.28, now);
+      magOutGain.gain.exponentialRampToValueAtTime(0.01, now + 0.12);
+      magOutNoise.connect(magOutFilter);
+      magOutFilter.connect(magOutGain);
+      magOutGain.connect(ctx.destination);
+      magOutNoise.start(now);
+
+      // ==========================================
+      // 2. FRESH MAGAZINE INSERT & SLAP (t = 0.28s)
+      // ==========================================
+      const tInsert = now + 0.28;
+
+      // Mag guidance metal scraping
+      const guideNoise = getNoise(0.1);
+      const guideFilter = ctx.createBiquadFilter();
+      guideFilter.type = 'bandpass';
+      guideFilter.frequency.setValueAtTime(800, tInsert - 0.06);
+      guideFilter.frequency.exponentialRampToValueAtTime(2200, tInsert);
+      guideFilter.Q.value = 4.0;
+      const guideGain = ctx.createGain();
+      guideGain.gain.setValueAtTime(0.2, tInsert - 0.06);
+      guideGain.gain.exponentialRampToValueAtTime(0.01, tInsert);
+      guideNoise.connect(guideFilter);
+      guideFilter.connect(guideGain);
+      guideGain.connect(ctx.destination);
+      guideNoise.start(tInsert - 0.06);
+
+      // Solid palm slap thud on magazine baseplate
+      const slapOsc = ctx.createOscillator();
+      const slapGain = ctx.createGain();
+      slapOsc.type = 'sine';
+      slapOsc.frequency.setValueAtTime(180, tInsert);
+      slapOsc.frequency.exponentialRampToValueAtTime(45, tInsert + 0.14);
+      slapGain.gain.setValueAtTime(0.7, tInsert);
+      slapGain.gain.exponentialRampToValueAtTime(0.01, tInsert + 0.14);
+      slapOsc.connect(slapGain);
+      slapGain.connect(ctx.destination);
+      slapOsc.start(tInsert);
+      slapOsc.stop(tInsert + 0.14);
+
+      // Metallic magazine lock click
+      const lockNoise = getNoise(0.08);
+      const lockFilter = ctx.createBiquadFilter();
+      lockFilter.type = 'highpass';
+      lockFilter.frequency.setValueAtTime(2400, tInsert);
+      const lockGain = ctx.createGain();
+      lockGain.gain.setValueAtTime(0.5, tInsert);
+      lockGain.gain.exponentialRampToValueAtTime(0.01, tInsert + 0.08);
+      lockNoise.connect(lockFilter);
+      lockFilter.connect(lockGain);
+      lockGain.connect(ctx.destination);
+      lockNoise.start(tInsert);
+
+      // ====================================================
+      // 3. AUTHENTIC "RACK THE SLIDE" (t = 0.60s to 0.98s)
+      // ====================================================
+      // Phase 3A: Pulling the slide back (backward rack stroke)
+      const tRackBack = now + 0.60;
+
+      // Heavy metal slide friction on receiver rails
+      const slideBackNoise = getNoise(0.16);
+      const slideBackFilter = ctx.createBiquadFilter();
+      slideBackFilter.type = 'bandpass';
+      slideBackFilter.frequency.setValueAtTime(1100, tRackBack);
+      slideBackFilter.frequency.exponentialRampToValueAtTime(3200, tRackBack + 0.12);
+      slideBackFilter.Q.value = 5.0;
+      const slideBackGain = ctx.createGain();
+      slideBackGain.gain.setValueAtTime(0.45, tRackBack);
+      slideBackGain.gain.exponentialRampToValueAtTime(0.01, tRackBack + 0.16);
+      slideBackNoise.connect(slideBackFilter);
+      slideBackFilter.connect(slideBackGain);
+      slideBackGain.connect(ctx.destination);
+      slideBackNoise.start(tRackBack);
+
+      // Gritty metal tooth ratchet
+      const ratchetOsc = ctx.createOscillator();
+      const ratchetGain = ctx.createGain();
+      ratchetOsc.type = 'sawtooth';
+      ratchetOsc.frequency.setValueAtTime(320, tRackBack);
+      ratchetOsc.frequency.exponentialRampToValueAtTime(740, tRackBack + 0.14);
+      ratchetGain.gain.setValueAtTime(0.3, tRackBack);
+      ratchetGain.gain.exponentialRampToValueAtTime(0.01, tRackBack + 0.14);
+      ratchetOsc.connect(ratchetGain);
+      ratchetGain.connect(ctx.destination);
+      ratchetOsc.start(tRackBack);
+      ratchetOsc.stop(tRackBack + 0.14);
+
+      // Slide hitting the rear stop
+      const rearStopOsc = ctx.createOscillator();
+      const rearStopGain = ctx.createGain();
+      rearStopOsc.type = 'triangle';
+      rearStopOsc.frequency.setValueAtTime(680, tRackBack + 0.12);
+      rearStopOsc.frequency.exponentialRampToValueAtTime(240, tRackBack + 0.19);
+      rearStopGain.gain.setValueAtTime(0.4, tRackBack + 0.12);
+      rearStopGain.gain.exponentialRampToValueAtTime(0.01, tRackBack + 0.19);
+      rearStopOsc.connect(rearStopGain);
+      rearStopGain.connect(ctx.destination);
+      rearStopOsc.start(tRackBack + 0.12);
+      rearStopOsc.stop(tRackBack + 0.19);
+
+      // Phase 3B: Slide release & heavy forward chamber slam (t = 0.80s)
+      const tSlam = now + 0.80;
+
+      // Heavy recoil spring snap forward
+      const springNoise = getNoise(0.09);
+      const springFilter = ctx.createBiquadFilter();
+      springFilter.type = 'bandpass';
+      springFilter.frequency.setValueAtTime(3400, tSlam);
+      springFilter.frequency.exponentialRampToValueAtTime(1400, tSlam + 0.08);
+      springFilter.Q.value = 4.0;
+      const springGain = ctx.createGain();
+      springGain.gain.setValueAtTime(0.35, tSlam);
+      springGain.gain.exponentialRampToValueAtTime(0.01, tSlam + 0.08);
+      springNoise.connect(springFilter);
+      springFilter.connect(springGain);
+      springGain.connect(ctx.destination);
+      springNoise.start(tSlam);
+
+      // Steel chamber slam impact (solid mechanical "CHAK-CHINK!")
+      const slamThud = ctx.createOscillator();
+      const slamThudGain = ctx.createGain();
+      slamThud.type = 'triangle';
+      slamThud.frequency.setValueAtTime(260, tSlam + 0.04);
+      slamThud.frequency.exponentialRampToValueAtTime(60, tSlam + 0.18);
+      slamThudGain.gain.setValueAtTime(0.85, tSlam + 0.04);
+      slamThudGain.gain.exponentialRampToValueAtTime(0.01, tSlam + 0.18);
+      slamThud.connect(slamThudGain);
+      slamThudGain.connect(ctx.destination);
+      slamThud.start(tSlam + 0.04);
+      slamThud.stop(tSlam + 0.18);
+
+      // Bright metallic breech lock resonance
+      const metalRing = ctx.createOscillator();
+      const metalRingFilter = ctx.createBiquadFilter();
+      metalRingFilter.type = 'bandpass';
+      metalRingFilter.frequency.setValueAtTime(3100, tSlam + 0.04);
+      metalRingFilter.Q.value = 7.0;
+      const metalRingGain = ctx.createGain();
+      metalRing.type = 'square';
+      metalRing.frequency.setValueAtTime(780, tSlam + 0.04);
+      metalRing.frequency.exponentialRampToValueAtTime(390, tSlam + 0.2);
+      metalRingGain.gain.setValueAtTime(0.4, tSlam + 0.04);
+      metalRingGain.gain.exponentialRampToValueAtTime(0.01, tSlam + 0.2);
+      metalRing.connect(metalRingFilter);
+      metalRingFilter.connect(metalRingGain);
+      metalRingGain.connect(ctx.destination);
+      metalRing.start(tSlam + 0.04);
+      metalRing.stop(tSlam + 0.2);
+
+      // Sharp locking detent snap
+      const snapNoise = getNoise(0.06);
+      const snapFilter = ctx.createBiquadFilter();
+      snapFilter.type = 'highpass';
+      snapFilter.frequency.setValueAtTime(3800, tSlam + 0.05);
+      const snapGain = ctx.createGain();
+      snapGain.gain.setValueAtTime(0.6, tSlam + 0.05);
+      snapGain.gain.exponentialRampToValueAtTime(0.01, tSlam + 0.11);
+      snapNoise.connect(snapFilter);
+      snapFilter.connect(snapGain);
+      snapGain.connect(ctx.destination);
+      snapNoise.start(tSlam + 0.05);
+
+      // Realistic tactical haptics matching Mag In (280ms) and Slide Rack Slam (800ms)
+      if (navigator.vibrate) {
+        setTimeout(() => {
+          if (navigator.vibrate) navigator.vibrate([20, 25, 30]);
+        }, 280);
+        setTimeout(() => {
+          if (navigator.vibrate) navigator.vibrate([15, 30, 45, 65]);
+        }, 800);
+      }
     } catch {
       // Ignore
     }
