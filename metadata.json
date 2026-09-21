@@ -1,0 +1,6 @@
+{
+  "name": "Vocabulary Sniper",
+  "description": "An interactive vocabulary sniper shooting game where students aim with a mobile-friendly sniper scope to practice health illness phrases, tracking real-time scores and saving leaderboard results to Google Sheets.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
