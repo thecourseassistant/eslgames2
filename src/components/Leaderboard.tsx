@@ -130,7 +130,7 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({
   return (
     <div
       id="leaderboard-modal"
-      className="w-full max-w-xl mx-auto bg-slate-950/95 border-2 border-amber-500/60 rounded-2xl shadow-2xl p-4 sm:p-6 text-white backdrop-blur-md relative"
+      className="w-full max-w-xl mx-auto my-auto max-h-[95dvh] overflow-y-auto bg-slate-950/95 border-2 border-amber-500/60 rounded-2xl shadow-2xl p-3 sm:p-6 text-white backdrop-blur-md relative"
     >
       {/* Header */}
       <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-4">
