@@ -1,6 +1,27 @@
-// Web Audio API Sound Synthesizer for high performance without external asset latency
+// Authentic Audio Manager with preloaded Web Audio API buffers and zero-latency playback
 class SoundManager {
   private ctx: AudioContext | null = null;
+  private fireBuffer: AudioBuffer | null = null;
+  private reloadBuffer: AudioBuffer | null = null;
+  private isPreloading: boolean = false;
+  private fireAudioPool: HTMLAudioElement[] = [];
+  private reloadAudio: HTMLAudioElement | null = null;
+  private poolIndex: number = 0;
+
+  constructor() {
+    if (typeof window !== 'undefined') {
+      const unlockAudio = () => {
+        this.init();
+        this.preload();
+        window.removeEventListener('pointerdown', unlockAudio);
+        window.removeEventListener('touchstart', unlockAudio);
+      };
+      window.addEventListener('pointerdown', unlockAudio, { once: true });
+      window.addEventListener('touchstart', unlockAudio, { once: true });
+      // Asynchronously initiate buffer prefetch
+      setTimeout(() => this.preload(), 80);
+    }
+  }
 
   private init() {
     if (!this.ctx) {
@@ -14,13 +35,119 @@ class SoundManager {
     }
   }
 
+  preload() {
+    if (this.isPreloading) return;
+    this.isPreloading = true;
+    this.init();
+
+    // 1. Prepare HTML5 Audio fallback pool
+    try {
+      for (let i = 0; i < 3; i++) {
+        const audio = new Audio('/sounds/kar98k_fire.mp3');
+        audio.preload = 'auto';
+        this.fireAudioPool.push(audio);
+      }
+      this.reloadAudio = new Audio('/sounds/kar98k_reload.mp3');
+      this.reloadAudio.preload = 'auto';
+    } catch {
+      // Ignore
+    }
+
+    // 2. Fetch and decode audio buffers into memory for zero-latency Web Audio API playback
+    this.loadBuffer('/sounds/kar98k_fire.mp3').then((buf) => {
+      if (buf) this.fireBuffer = buf;
+    });
+
+    this.loadBuffer('/sounds/kar98k_reload.mp3').then((buf) => {
+      if (buf) this.reloadBuffer = buf;
+    });
+  }
+
+  private async loadBuffer(url: string): Promise<AudioBuffer | null> {
+    try {
+      const resp = await fetch(url);
+      if (!resp.ok) return null;
+      const arrayBuf = await resp.arrayBuffer();
+      if (!this.ctx) this.init();
+      if (!this.ctx) return null;
+      return await this.ctx.decodeAudioData(arrayBuf);
+    } catch {
+      return null;
+    }
+  }
+
+  setCustomFireSound(fileOrUrl: File | string) {
+    this.init();
+    const url = typeof fileOrUrl === 'string' ? fileOrUrl : URL.createObjectURL(fileOrUrl);
+    this.loadBuffer(url).then((buf) => {
+      if (buf) this.fireBuffer = buf;
+    });
+    this.fireAudioPool = [new Audio(url)];
+  }
+
+  setCustomReloadSound(fileOrUrl: File | string) {
+    this.init();
+    const url = typeof fileOrUrl === 'string' ? fileOrUrl : URL.createObjectURL(fileOrUrl);
+    this.loadBuffer(url).then((buf) => {
+      if (buf) this.reloadBuffer = buf;
+    });
+    this.reloadAudio = new Audio(url);
+  }
+
   playShot() {
+    try {
+      this.init();
+      let played = false;
+
+      // 1. High fidelity Web Audio buffer playback (lowest latency)
+      if (this.ctx && this.fireBuffer) {
+        try {
+          const source = this.ctx.createBufferSource();
+          source.buffer = this.fireBuffer;
+          const gainNode = this.ctx.createGain();
+          gainNode.gain.setValueAtTime(1.0, this.ctx.currentTime);
+          source.connect(gainNode);
+          gainNode.connect(this.ctx.destination);
+          source.start(0);
+          played = true;
+        } catch {
+          played = false;
+        }
+      }
+
+      // 2. HTML5 Audio pool fallback
+      if (!played && this.fireAudioPool.length > 0) {
+        try {
+          const audio = this.fireAudioPool[this.poolIndex % this.fireAudioPool.length];
+          this.poolIndex++;
+          audio.currentTime = 0;
+          audio.play().catch(() => {});
+          played = true;
+        } catch {
+          played = false;
+        }
+      }
+
+      // 3. High-punch synthesizer fallback
+      if (!played) {
+        this.playProceduralShot();
+      }
+
+      // Authentic mobile weapon recoil haptics
+      if (navigator.vibrate) {
+        navigator.vibrate([35, 15, 60]);
+      }
+    } catch {
+      // Ignore audio errors gracefully
+    }
+  }
+
+  playProceduralShot() {
     try {
       this.init();
       if (!this.ctx) return;
       const t = this.ctx.currentTime;
       
-      // Powerful sniper blast using white noise buffer + steep lowpass decay
       const bufferSize = this.ctx.sampleRate * 0.35;
       const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
       const data = buffer.getChannelData(0);
@@ -40,7 +167,6 @@ class SoundManager {
       gain.gain.setValueAtTime(1.0, t);
       gain.gain.exponentialRampToValueAtTime(0.01, t + 0.3);
 
-      // Low frequency punch
       const osc = this.ctx.createOscillator();
       osc.type = 'triangle';
       osc.frequency.setValueAtTime(160, t);
@@ -61,13 +187,8 @@ class SoundManager {
       osc.start(t);
       noise.stop(t + 0.35);
       osc.stop(t + 0.25);
-
-      // Haptic feedback for mobile devices if supported
-      if (navigator.vibrate) {
-        navigator.vibrate([30, 20, 50]);
-      }
     } catch {
-      // Ignore audio errors gracefully
+      // Ignore
     }
   }
 
@@ -133,6 +254,65 @@ class SoundManager {
   }
 
   playReload() {
+    try {
+      this.init();
+      let played = false;
+
+      // 1. High-fidelity Web Audio buffer playback
+      if (this.ctx && this.reloadBuffer) {
+        try {
+          const source = this.ctx.createBufferSource();
+          source.buffer = this.reloadBuffer;
+          const gainNode = this.ctx.createGain();
+          gainNode.gain.setValueAtTime(1.0, this.ctx.currentTime);
+          source.connect(gainNode);
+          gainNode.connect(this.ctx.destination);
+          source.start(0);
+          played = true;
+        } catch {
+          played = false;
+        }
+      }
+
+      // 2. HTML5 Audio fallback
+      if (!played && this.reloadAudio) {
+        try {
+          this.reloadAudio.currentTime = 0;
+          this.reloadAudio.play().catch(() => {});
+          played = true;
+        } catch {
+          played = false;
+        }
+      }
+
+      // 3. Procedural reload fallback
+      if (!played) {
+        this.playProceduralReload();
+      }
+
+      // Synchronized tactical haptic feedback matching the authentic stages:
+      // 0ms: bolt handle lift/draw back
+      // 800ms: bolt open
+      // 1800ms: cartridge feed & clip push
+      // 2700ms: rack the slide forward & lock into battery!
+      if (navigator.vibrate) {
+        navigator.vibrate(25);
+        setTimeout(() => {
+          if (navigator.vibrate) navigator.vibrate([20, 25]);
+        }, 800);
+        setTimeout(() => {
+          if (navigator.vibrate) navigator.vibrate([25, 20, 30]);
+        }, 1800);
+        setTimeout(() => {
+          if (navigator.vibrate) navigator.vibrate([35, 30, 75]);
+        }, 2700);
+      }
+    } catch {
+      // Ignore
+    }
+  }
+
+  playProceduralReload() {
     try {
       this.init();
       if (!this.ctx) return;
@@ -380,19 +560,8 @@ class SoundManager {
     }
   }
 
-  speak(text: string) {
-    if ('speechSynthesis' in window) {
-      try {
-        window.speechSynthesis.cancel();
-        const utterance = new SpeechSynthesisUtterance(text);
-        utterance.rate = 0.95;
-        utterance.pitch = 1.0;
-        utterance.lang = 'en-US';
-        window.speechSynthesis.speak(utterance);
-      } catch {
-        // Ignore speech synthesis failures
-      }
-    }
+  speak(_text: string) {
+    // Automatic voice disabled in favor of true weapon sound effects
   }
 }
 

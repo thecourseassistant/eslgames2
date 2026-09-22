@@ -18,6 +18,9 @@ import {
   Trash2,
   KeyRound,
   ShieldAlert,
+  Music,
+  Upload,
+  Play,
 } from 'lucide-react';
 import { LeaderboardEntry } from '../types';
 import {
@@ -27,6 +30,7 @@ import {
   clearLeaderboard,
   APPS_SCRIPT_TEMPLATE,
 } from '../utils/leaderboard';
+import { sounds } from '../utils/audio';
 
 interface LeaderboardProps {
   entries: LeaderboardEntry[];
@@ -71,6 +75,10 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({
   // Clear leaderboard state
   const [showConfirmClear, setShowConfirmClear] = useState(false);
   const [clearSuccessMessage, setClearSuccessMessage] = useState(false);
+
+  // Custom audio state inside settings
+  const [fireFileName, setFireFileName] = useState<string | null>(null);
+  const [reloadFileName, setReloadFileName] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -353,6 +361,101 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({
                 </div>
               </div>
             )}
+          </div>
+
+          {/* Section 3: Custom Weapon Sound Effects */}
+          <div className="border-t border-slate-800 pt-3 space-y-3">
+            <div className="font-bold text-amber-400 flex items-center gap-1.5">
+              <Music className="w-4 h-4 text-amber-400" />
+              <span>Custom Weapon Sound Effects</span>
+            </div>
+
+            <p className="text-slate-300 text-[11px] leading-relaxed">
+              Upload custom audio files (.mp3, .wav, or .ogg) for shooting and magazine reload sounds:
+            </p>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {/* Gunfire sound */}
+              <div className="p-3 bg-black/60 rounded-lg border border-slate-800 space-y-2">
+                <div className="flex items-center justify-between text-[11px] font-semibold text-slate-200">
+                  <span>Gunfire Sound</span>
+                  {fireFileName && <span className="text-emerald-400 text-[10px] font-mono">Custom Loaded</span>}
+                </div>
+                <div className="flex items-center gap-2">
+                  <label className="flex-1 flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-900 hover:bg-slate-800 border border-slate-700 rounded cursor-pointer text-[10px] text-slate-300 truncate">
+                    <Upload className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                    <span className="truncate">{fireFileName || 'Upload Fire (.mp3/.wav)'}</span>
+                    <input
+                      type="file"
+                      accept="audio/*"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          sounds.setCustomFireSound(file);
+                          setFireFileName(file.name);
+                        }
+                      }}
+                      className="hidden"
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => sounds.playShot()}
+                    className="p-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 border border-amber-500/40 rounded transition"
+                    title="Test Fire Sound"
+                  >
+                    <Play className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Reload sound */}
+              <div className="p-3 bg-black/60 rounded-lg border border-slate-800 space-y-2">
+                <div className="flex items-center justify-between text-[11px] font-semibold text-slate-200">
+                  <span>Reload / Magazine</span>
+                  {reloadFileName && <span className="text-emerald-400 text-[10px] font-mono">Custom Loaded</span>}
+                </div>
+                <div className="flex items-center gap-2">
+                  <label className="flex-1 flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-900 hover:bg-slate-800 border border-slate-700 rounded cursor-pointer text-[10px] text-slate-300 truncate">
+                    <Upload className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                    <span className="truncate">{reloadFileName || 'Upload Reload (.mp3/.wav)'}</span>
+                    <input
+                      type="file"
+                      accept="audio/*"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          sounds.setCustomReloadSound(file);
+                          setReloadFileName(file.name);
+                        }
+                      }}
+                      className="hidden"
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => sounds.playReload()}
+                    className="p-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 border border-amber-500/40 rounded transition"
+                    title="Test Reload Sound"
+                  >
+                    <Play className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                sounds.setCustomFireSound('/sounds/kar98k_fire.mp3');
+                sounds.setCustomReloadSound('/sounds/kar98k_reload.mp3');
+                setFireFileName(null);
+                setReloadFileName(null);
+              }}
+              className="text-[10px] text-slate-400 hover:text-amber-400 font-mono flex items-center gap-1 transition"
+            >
+              <RotateCcw className="w-3 h-3" /> Reset Default Weapon Audio
+            </button>
           </div>
         </div>
       )}
