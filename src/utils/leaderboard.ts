@@ -7,14 +7,15 @@ export function getLeaderboard(): LeaderboardEntry[] {
   try {
     const raw = localStorage.getItem(LEADERBOARD_KEY);
     if (!raw) {
-      return [
-        { id: '1', studentName: 'Alex K.', score: 850, accuracy: 100, totalTime: 22.5, date: '2026-09-19' },
-        { id: '2', studentName: 'Sarah M.', score: 760, accuracy: 90.0, totalTime: 27.2, date: '2026-09-20' },
-        { id: '3', studentName: 'David L.', score: 680, accuracy: 82.5, totalTime: 31.4, date: '2026-09-20' },
-        { id: '4', studentName: 'Emma W.', score: 620, accuracy: 77.0, totalTime: 36.0, date: '2026-09-21' },
-      ];
+      return [];
     }
-    return JSON.parse(raw);
+    const parsed = JSON.parse(raw);
+    // If old mock data was previously cached, clear it
+    if (Array.isArray(parsed) && parsed.some((e) => e.studentName === 'Alex K.' || e.studentName === 'Sarah M.')) {
+      localStorage.setItem(LEADERBOARD_KEY, JSON.stringify([]));
+      return [];
+    }
+    return parsed;
   } catch {
     return [];
   }

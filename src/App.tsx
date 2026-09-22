@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Volume2, VolumeX, Crosshair, Award, Flame, Play, Shield, Skull, RotateCcw, Music } from 'lucide-react';
+import { Volume2, VolumeX, Crosshair, Award, Flame, Play, Shield, Skull, RotateCcw } from 'lucide-react';
 import { VOCABULARY_LIST, PUBG_BG } from './data';
 import { ActiveTarget, GameState, LeaderboardEntry } from './types';
 import { sounds } from './utils/audio';
@@ -7,7 +7,6 @@ import { getLeaderboard, saveLeaderboardEntry } from './utils/leaderboard';
 import { SniperScope } from './components/SniperScope';
 import { Leaderboard } from './components/Leaderboard';
 import { VirtualJoystick } from './components/VirtualJoystick';
-import { SoundUploaderModal } from './components/SoundUploaderModal';
 
 const ROUND_TIME_LIMIT = 60; // 60 seconds round
 const TARGETS_ON_SCREEN = 4; // 4 targets on screen for challenge
@@ -45,9 +44,8 @@ export default function App() {
   // Active targets on battlefield
   const [targets, setTargets] = useState<ActiveTarget[]>([]);
 
-  // Sound toggle & custom audio modal
+  // Sound toggle
   const [soundEnabled, setSoundEnabled] = useState(true);
-  const [isSoundModalOpen, setIsSoundModalOpen] = useState(false);
 
   // Leaderboard state
   const [leaderboardList, setLeaderboardList] = useState<LeaderboardEntry[]>([]);
@@ -459,16 +457,6 @@ export default function App() {
         {/* Controls */}
         <div className="flex items-center gap-1.5 sm:gap-2">
           <button
-            id="custom-sounds-btn"
-            onClick={() => setIsSoundModalOpen(true)}
-            className="flex items-center gap-1 px-2 sm:px-2.5 py-1 text-[11px] sm:text-xs font-bold rounded bg-slate-900 hover:bg-slate-800 text-amber-400 border border-amber-500/40 transition"
-            title="Upload Custom Weapon Sounds"
-          >
-            <Music className="w-3.5 h-3.5 text-amber-400" />
-            <span className="hidden sm:inline">Custom Sounds</span>
-          </button>
-
-          <button
             id="sound-toggle-btn"
             onClick={() => setSoundEnabled(!soundEnabled)}
             className="p-1 sm:p-1.5 rounded bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-700 transition"
@@ -765,12 +753,6 @@ export default function App() {
           </div>
         )}
       </main>
-
-      {/* Sound Customizer Modal */}
-      <SoundUploaderModal
-        isOpen={isSoundModalOpen}
-        onClose={() => setIsSoundModalOpen(false)}
-      />
     </div>
   );
 }
