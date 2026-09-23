@@ -40,25 +40,31 @@ class SoundManager {
     this.isPreloading = true;
     this.init();
 
+    const savedFire = typeof window !== 'undefined' ? localStorage.getItem('pubg_custom_fire_sound') : null;
+    const savedReload = typeof window !== 'undefined' ? localStorage.getItem('pubg_custom_reload_sound') : null;
+
+    const fireUrl = savedFire || '/sounds/kar98k_fire.mp3';
+    const reloadUrl = savedReload || '/sounds/kar98k_reload.mp3';
+
     // 1. Prepare HTML5 Audio fallback pool
     try {
       for (let i = 0; i < 3; i++) {
-        const audio = new Audio('/sounds/kar98k_fire.mp3');
+        const audio = new Audio(fireUrl);
         audio.preload = 'auto';
         this.fireAudioPool.push(audio);
       }
-      this.reloadAudio = new Audio('/sounds/kar98k_reload.mp3');
+      this.reloadAudio = new Audio(reloadUrl);
       this.reloadAudio.preload = 'auto';
     } catch {
       // Ignore
     }
 
     // 2. Fetch and decode audio buffers into memory for zero-latency Web Audio API playback
-    this.loadBuffer('/sounds/kar98k_fire.mp3').then((buf) => {
+    this.loadBuffer(fireUrl).then((buf) => {
       if (buf) this.fireBuffer = buf;
     });
 
-    this.loadBuffer('/sounds/kar98k_reload.mp3').then((buf) => {
+    this.loadBuffer(reloadUrl).then((buf) => {
       if (buf) this.reloadBuffer = buf;
     });
   }
@@ -78,20 +84,63 @@ class SoundManager {
 
   setCustomFireSound(fileOrUrl: File | string) {
     this.init();
-    const url = typeof fileOrUrl === 'string' ? fileOrUrl : URL.createObjectURL(fileOrUrl);
-    this.loadBuffer(url).then((buf) => {
-      if (buf) this.fireBuffer = buf;
-    });
-    this.fireAudioPool = [new Audio(url)];
+    if (typeof fileOrUrl === 'string') {
+      if (fileOrUrl.startsWith('data:') || fileOrUrl.startsWith('http') || fileOrUrl.startsWith('/')) {
+        try { localStorage.setItem('pubg_custom_fire_sound', fileOrUrl); } catch {}
+      }
+      this.loadBuffer(fileOrUrl).then((buf) => {
+        if (buf) this.fireBuffer = buf;
+      });
+      this.fireAudioPool = [new Audio(fileOrUrl)];
+    } else {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const dataUrl = e.target?.result as string;
+        if (dataUrl) {
+          try { localStorage.setItem('pubg_custom_fire_sound', dataUrl); } catch {}
+          this.loadBuffer(dataUrl).then((buf) => {
+            if (buf) this.fireBuffer = buf;
+          });
+          this.fireAudioPool = [new Audio(dataUrl)];
+        }
+      };
+      reader.readAsDataURL(fileOrUrl);
+    }
   }
 
   setCustomReloadSound(fileOrUrl: File | string) {
     this.init();
-    const url = typeof fileOrUrl === 'string' ? fileOrUrl : URL.createObjectURL(fileOrUrl);
-    this.loadBuffer(url).then((buf) => {
-      if (buf) this.reloadBuffer = buf;
-    });
-    this.reloadAudio = new Audio(url);
+    if (typeof fileOrUrl === 'string') {
+      if (fileOrUrl.startsWith('data:') || fileOrUrl.startsWith('http') || fileOrUrl.startsWith('/')) {
+        try { localStorage.setItem('pubg_custom_reload_sound', fileOrUrl); } catch {}
+      }
+      this.loadBuffer(fileOrUrl).then((buf) => {
+        if (buf) this.reloadBuffer = buf;
+      });
+      this.reloadAudio = new Audio(fileOrUrl);
+    } else {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const dataUrl = e.target?.result as string;
+        if (dataUrl) {
+          try { localStorage.setItem('pubg_custom_reload_sound', dataUrl); } catch {}
+          this.loadBuffer(dataUrl).then((buf) => {
+            if (buf) this.reloadBuffer = buf;
+          });
+          this.reloadAudio = new Audio(dataUrl);
+        }
+      };
+      reader.readAsDataURL(fileOrUrl);
+    }
+  }
+
+  resetDefaultSounds() {
+    try {
+      localStorage.removeItem('pubg_custom_fire_sound');
+      localStorage.removeItem('pubg_custom_reload_sound');
+    } catch {}
+    this.setCustomFireSound('/sounds/kar98k_fire.mp3');
+    this.setCustomReloadSound('/sounds/kar98k_reload.mp3');
   }
 
   playShot() {

@@ -447,8 +447,7 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({
             <button
               type="button"
               onClick={() => {
-                sounds.setCustomFireSound('/sounds/kar98k_fire.mp3');
-                sounds.setCustomReloadSound('/sounds/kar98k_reload.mp3');
+                sounds.resetDefaultSounds();
                 setFireFileName(null);
                 setReloadFileName(null);
               }}

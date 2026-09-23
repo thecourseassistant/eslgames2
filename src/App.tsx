@@ -8,7 +8,6 @@ import { SniperScope } from './components/SniperScope';
 import { Leaderboard } from './components/Leaderboard';
 import { VirtualJoystick } from './components/VirtualJoystick';
 
-const ROUND_TIME_LIMIT = 60; // 60 seconds round
 const TARGETS_ON_SCREEN = 4; // 4 targets on screen for challenge
 const MAGAZINE_CAPACITY = 4; // 4 bullets in magazine
 
@@ -20,19 +19,41 @@ export default function App() {
   const [streak, setStreak] = useState(0);
   const [shotsFired, setShotsFired] = useState(0);
   const [hits, setHits] = useState(0);
-  const [timeLeft, setTimeLeft] = useState(ROUND_TIME_LIMIT);
   const [elapsedTime, setElapsedTime] = useState(0);
 
   // Magazine & Ammo (4 bullets)
   const [ammo, setAmmo] = useState(MAGAZINE_CAPACITY);
   const [isReloading, setIsReloading] = useState(false);
+  const [reloadTimer, setReloadTimer] = useState(3);
+
+  // Reload countdown timer effect
+  useEffect(() => {
+    let interval: number | null = null;
+    if (isReloading) {
+      interval = window.setInterval(() => {
+        setReloadTimer((prev) => {
+          if (prev <= 1) {
+            setAmmo(MAGAZINE_CAPACITY);
+            setIsReloading(false);
+            if (interval) clearInterval(interval);
+            return 3;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [isReloading]);
 
   // Vocabulary progression
   const [remainingVocab, setRemainingVocab] = useState<typeof VOCABULARY_LIST>([]);
   const [currentPromptIndex, setCurrentPromptIndex] = useState(0);
 
-  // Scope Aim (percentage 0-100%)
+  // Scope Aim & Smooth Sensitivity
   const [scopePos, setScopePos] = useState<{ x: number; y: number }>({ x: 50, y: 50 });
+  const [scopeSensitivity, setScopeSensitivity] = useState<number>(0.45); // Smooth precision sensitivity
   const [isFiring, setIsFiring] = useState(false);
   const [feedbackEffect, setFeedbackEffect] = useState<{ type: 'HIT' | 'MISS' | 'RELOAD'; text: string; id: number } | null>(null);
 
@@ -103,21 +124,21 @@ export default function App() {
       const baseX = 12 + idx * zoneWidth + Math.random() * (zoneWidth - 6);
       const baseY = 22 + Math.random() * 52;
 
-      // Faster dynamic velocities
+      // Smooth, steady target velocities
       const dirX = Math.random() > 0.5 ? 1 : -1;
       const dirY = Math.random() > 0.5 ? 1 : -1;
-      const speedMagnitudeX = 0.22 + Math.random() * 0.18; // ~2x faster than previous
-      const speedMagnitudeY = 0.18 + Math.random() * 0.16;
+      const speedMagnitudeX = 0.11 + Math.random() * 0.10;
+      const speedMagnitudeY = 0.09 + Math.random() * 0.09;
 
       return {
         id: `${vocab.id}-${Date.now()}-${Math.random()}`,
         vocabId: vocab.id,
         x: baseX,
         y: baseY,
-        radius: 46,
+        radius: 65,
         speedX: dirX * speedMagnitudeX,
         speedY: dirY * speedMagnitudeY,
-        scale: 0.95 + Math.random() * 0.1,
+        scale: 1.0 + Math.random() * 0.1,
         condition: vocab.condition,
         phrase: vocab.phrase,
         image: vocab.image,
@@ -125,6 +146,13 @@ export default function App() {
     });
 
     setTargets(newTargets);
+  };
+
+  // Format count-up timer as MM:SS
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
   };
 
   // Start round
@@ -136,7 +164,6 @@ export default function App() {
     setStreak(0);
     setShotsFired(0);
     setHits(0);
-    setTimeLeft(ROUND_TIME_LIMIT);
     setElapsedTime(0);
     setScopePos({ x: 50, y: 50 });
     setAmmo(MAGAZINE_CAPACITY);
@@ -148,20 +175,19 @@ export default function App() {
     setGameState('PLAYING');
   }, []);
 
-  // Faster targets animation loop
+  // Smooth targets & precision scope animation loop
   useEffect(() => {
     if (gameState !== 'PLAYING') return;
 
     const gameLoop = () => {
-      // Update scope position ONLY from Virtual Joystick
+      // Update scope position smoothly from Virtual Joystick using scopeSensitivity
       if (isJoystickActiveRef.current) {
         const vx = joystickVectorRef.current.x;
         const vy = joystickVectorRef.current.y;
         if (vx !== 0 || vy !== 0) {
-          const speed = 1.35;
           setScopePos((prev) => {
-            const nextX = Math.max(5, Math.min(95, prev.x + vx * speed));
-            const nextY = Math.max(5, Math.min(95, prev.y + vy * speed));
+            const nextX = Math.max(5, Math.min(95, prev.x + vx * scopeSensitivity));
+            const nextY = Math.max(5, Math.min(95, prev.y + vy * scopeSensitivity));
             return { x: nextX, y: nextY };
           });
         }
@@ -210,7 +236,7 @@ export default function App() {
         cancelAnimationFrame(animationFrameRef.current);
       }
     };
-  }, [gameState]);
+  }, [gameState, scopeSensitivity]);
 
   // Finish round
   const finishGame = useCallback(() => {
@@ -229,17 +255,10 @@ export default function App() {
     setGameState('ROUND_OVER');
   }, [score, shotsFired, hits, elapsedTime]);
 
-  // Round countdown timer
+  // Count-up timer (No time limit)
   useEffect(() => {
     if (gameState === 'PLAYING') {
       timerIntervalRef.current = window.setInterval(() => {
-        setTimeLeft((prev) => {
-          if (prev <= 1) {
-            finishGame();
-            return 0;
-          }
-          return prev - 1;
-        });
         setElapsedTime((prev) => prev + 1);
       }, 1000);
     }
@@ -249,25 +268,16 @@ export default function App() {
         clearInterval(timerIntervalRef.current);
       }
     };
-  }, [gameState, finishGame]);
+  }, [gameState]);
 
   // Reload handler
   const handleReload = () => {
     if (isReloading || ammo === MAGAZINE_CAPACITY) return;
     setIsReloading(true);
+    setReloadTimer(3);
     if (soundEnabled) {
       sounds.playReload();
     }
-    setFeedbackEffect({
-      type: 'RELOAD',
-      text: 'RELOADING: BOLT • LOAD • RACK SLIDE',
-      id: Date.now(),
-    });
-
-    setTimeout(() => {
-      setAmmo(MAGAZINE_CAPACITY);
-      setIsReloading(false);
-    }, 2900);
   };
 
   // Fire shot on click / tap (No hold-breath required)
@@ -321,7 +331,7 @@ export default function App() {
       const targetPxY = (target.y / 100) * rect.height;
       const dist = Math.hypot(aimPxX - targetPxX, aimPxY - targetPxY);
 
-      if (dist < 65 && dist < minDistance) {
+      if (dist < 90 && dist < minDistance) {
         hitTarget = target;
         minDistance = dist;
       }
@@ -335,8 +345,8 @@ export default function App() {
         }
 
         const streakBonus = streak * 25;
-        const timeBonus = Math.max(10, Math.floor(timeLeft / 2));
-        const pointsAwarded = 100 + streakBonus + timeBonus;
+        const speedBonus = Math.max(10, 100 - elapsedTime * 2);
+        const pointsAwarded = 100 + streakBonus + speedBonus;
 
         setScore((prev) => prev + pointsAwarded);
         setHits((prev) => prev + 1);
@@ -378,7 +388,7 @@ export default function App() {
       setScore((prev) => Math.max(0, prev - 10));
       setFeedbackEffect({
         type: 'MISS',
-        text: 'MISSED TARGET! Scan the darkness.',
+        text: 'MISSED',
         id: Date.now(),
       });
     }
@@ -432,8 +442,8 @@ export default function App() {
 
             <div className="flex flex-col items-center">
               <span className="text-[8px] uppercase tracking-wider text-slate-400 font-sans leading-none">Time</span>
-              <span className={`font-black text-xs sm:text-sm leading-tight ${timeLeft <= 10 ? 'text-red-500 animate-pulse' : 'text-emerald-400'}`}>
-                {timeLeft}s
+              <span className="font-black text-xs sm:text-sm leading-tight text-emerald-400">
+                {formatTime(elapsedTime)}
               </span>
             </div>
 
@@ -532,7 +542,7 @@ export default function App() {
                 </div>
               )}
 
-              {/* 4 Active Fast-Moving Targets (Aim with joystick/crosshair, tap FIRE to shoot) */}
+              {/* 4 Active Targets (Aim with joystick/crosshair or tap battlefield, tap FIRE to shoot) */}
               {targets.map((target) => (
                 <div
                   key={target.id}
@@ -544,14 +554,14 @@ export default function App() {
                   }}
                   className="absolute z-10 pointer-events-none select-none transition-transform duration-75"
                 >
-                  <div className="relative w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 rounded-2xl bg-white p-1 shadow-2xl border-2 border-slate-300 overflow-hidden flex items-center justify-center">
+                  <div className="relative w-28 h-28 sm:w-36 sm:h-36 md:w-40 md:h-40 rounded-3xl bg-white p-2 shadow-2xl border-2 border-slate-300 overflow-hidden flex items-center justify-center">
                     <img
                       src={target.image}
                       alt={target.condition}
-                      className="w-full h-full object-contain pointer-events-none rounded-xl"
+                      className="w-full h-full object-contain pointer-events-none rounded-2xl"
                       referrerPolicy="no-referrer"
                     />
-                    <div className="absolute bottom-1 right-1 px-1 py-0.2 rounded bg-black/80 text-[7px] sm:text-[8px] font-mono text-amber-400 font-bold pointer-events-none">
+                    <div className="absolute bottom-1.5 right-1.5 px-1.5 py-0.5 rounded bg-black/85 text-[8px] sm:text-[10px] font-mono text-amber-400 font-bold pointer-events-none">
                       AIM
                     </div>
                   </div>
@@ -607,7 +617,7 @@ export default function App() {
 
                 {/* Tactical Buttons Row: Reload & Fire */}
                 <div className="flex items-center gap-2 sm:gap-3">
-                  {/* Reload Button */}
+                  {/* Reload Button with countdown clock inside */}
                   <button
                     id="pubg-reload-btn"
                     onPointerDown={(e) => {
@@ -616,9 +626,9 @@ export default function App() {
                       handleReload();
                     }}
                     disabled={isReloading || ammo === MAGAZINE_CAPACITY}
-                    className={`w-12 h-12 sm:w-14 sm:h-14 rounded-full flex flex-col items-center justify-center backdrop-blur-md border-2 transition-all duration-100 select-none shadow-xl active:scale-90 ${
+                    className={`w-13 h-13 sm:w-16 sm:h-16 rounded-full flex items-center justify-center backdrop-blur-md border-2 transition-all duration-100 select-none shadow-xl active:scale-90 ${
                       isReloading
-                        ? 'bg-amber-500/40 border-amber-400 text-amber-300 animate-spin'
+                        ? 'bg-amber-500/30 border-amber-400 text-amber-300'
                         : ammo === 0
                         ? 'bg-red-500/40 border-red-400 text-white animate-bounce shadow-red-500/40'
                         : ammo < MAGAZINE_CAPACITY
@@ -627,17 +637,20 @@ export default function App() {
                     }`}
                     title="Reload Magazine"
                   >
-                    <RotateCcw className={`w-4 h-4 sm:w-5 sm:h-5 ${isReloading ? 'animate-spin' : ''}`} />
-                    <span className="text-[7px] sm:text-[8px] font-black tracking-tighter uppercase font-mono mt-0.5">
-                      {isReloading ? 'LOAD' : 'RELOAD'}
-                    </span>
+                    {isReloading ? (
+                      <span className="text-sm sm:text-base font-black font-mono text-amber-300 animate-pulse">
+                        {reloadTimer}s
+                      </span>
+                    ) : (
+                      <RotateCcw className="w-5 h-5 sm:w-6 sm:h-6" />
+                    )}
                   </button>
 
-                  {/* Fire Button (Only way to shoot) */}
+                  {/* Fire Button (Icon only) */}
                   <button
                     id="pubg-shoot-btn"
                     onPointerDown={handleShootButtonClick}
-                    className={`relative w-16 h-16 sm:w-20 sm:h-20 rounded-full flex flex-col items-center justify-center select-none backdrop-blur-md border-[2.5px] transition-all duration-75 shadow-2xl active:scale-95 ${
+                    className={`relative w-16 h-16 sm:w-20 sm:h-20 rounded-full flex items-center justify-center select-none backdrop-blur-md border-[2.5px] transition-all duration-75 shadow-2xl active:scale-95 ${
                       isFiring
                         ? 'bg-amber-400/90 border-amber-200 text-black scale-95 shadow-[0_0_35px_rgba(251,191,36,0.9)]'
                         : ammo === 0
@@ -645,12 +658,9 @@ export default function App() {
                         : 'bg-black/50 hover:bg-black/65 border-amber-400/90 text-white shadow-[0_0_20px_rgba(0,0,0,0.9)]'
                     }`}
                   >
-                    <div className="w-8 h-8 sm:w-11 sm:h-11 rounded-full border border-dashed border-white/40 flex items-center justify-center pointer-events-none">
+                    <div className="w-9 h-9 sm:w-12 sm:h-12 rounded-full border border-dashed border-white/40 flex items-center justify-center pointer-events-none">
                       <Crosshair className={`w-5 h-5 sm:w-7 sm:h-7 ${isFiring ? 'scale-110 text-black' : 'text-amber-400'}`} />
                     </div>
-                    <span className="text-[8px] sm:text-[9px] font-black tracking-wider font-mono uppercase mt-0.5 pointer-events-none">
-                      {isReloading ? 'WAIT' : ammo === 0 ? 'EMPTY' : 'FIRE'}
-                    </span>
                   </button>
                 </div>
               </div>
