@@ -3,7 +3,7 @@ import { Volume2, VolumeX, Crosshair, Award, Flame, Play, Shield, Skull, RotateC
 import { VOCABULARY_LIST, PUBG_BG } from './data';
 import { ActiveTarget, GameState, LeaderboardEntry } from './types';
 import { sounds } from './utils/audio';
-import { getLeaderboard, saveLeaderboardEntry } from './utils/leaderboard';
+import { getLeaderboard, saveLeaderboardEntry, fetchCloudAudio, syncAudioToCloud } from './utils/leaderboard';
 import { SniperScope } from './components/SniperScope';
 import { Leaderboard } from './components/Leaderboard';
 import { VirtualJoystick } from './components/VirtualJoystick';
@@ -98,9 +98,15 @@ export default function App() {
     isJoystickActiveRef.current = false;
   }, []);
 
-  // Load initial leaderboard
+  // Load initial leaderboard and sync shared cloud audio across devices
   useEffect(() => {
     setLeaderboardList(getLeaderboard());
+    fetchCloudAudio().then((res) => {
+      if (res) {
+        if (res.fireSound) sounds.setCustomFireSound(res.fireSound);
+        if (res.reloadSound) sounds.setCustomReloadSound(res.reloadSound);
+      }
+    });
   }, []);
 
   // Current active target prompt

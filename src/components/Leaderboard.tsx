@@ -29,6 +29,8 @@ import {
   setAppsScriptUrl,
   clearLeaderboard,
   APPS_SCRIPT_TEMPLATE,
+  syncAudioToCloud,
+  fetchCloudAudio,
 } from '../utils/leaderboard';
 import { sounds } from '../utils/audio';
 
@@ -79,6 +81,18 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({
   // Custom audio state inside settings
   const [fireFileName, setFireFileName] = useState<string | null>(null);
   const [reloadFileName, setReloadFileName] = useState<string | null>(null);
+  const [audioSyncStatus, setAudioSyncStatus] = useState<'idle' | 'syncing' | 'synced' | 'no_url' | 'error'>('idle');
+
+  const handlePublishAudioToCloud = async () => {
+    setAudioSyncStatus('syncing');
+    const res = await syncAudioToCloud();
+    if (res.success) {
+      setAudioSyncStatus('synced');
+      setTimeout(() => setAudioSyncStatus('idle'), 4000);
+    } else {
+      setAudioSyncStatus(res.error?.includes('No Google Apps Script') ? 'no_url' : 'error');
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -363,15 +377,20 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({
             )}
           </div>
 
-          {/* Section 3: Custom Weapon Sound Effects */}
+          {/* Section 3: Custom Weapon Sound Effects (Synced Across All Devices) */}
           <div className="border-t border-slate-800 pt-3 space-y-3">
-            <div className="font-bold text-amber-400 flex items-center gap-1.5">
-              <Music className="w-4 h-4 text-amber-400" />
-              <span>Custom Weapon Sound Effects</span>
+            <div className="font-bold text-amber-400 flex items-center justify-between">
+              <div className="flex items-center gap-1.5">
+                <Music className="w-4 h-4 text-amber-400" />
+                <span>Custom Weapon Sound Effects</span>
+              </div>
+              <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-950 text-emerald-400 border border-emerald-500/40">
+                Multi-Device Sync Enabled
+              </span>
             </div>
 
             <p className="text-slate-300 text-[11px] leading-relaxed">
-              Upload custom audio files (.mp3, .wav, or .ogg) for shooting and magazine reload sounds:
+              Upload custom gunfire or magazine reload sound files (.mp3, .wav). Sounds are saved to your Google Cloud Script so <strong className="text-amber-300">all student devices automatically play the exact same custom audio!</strong>
             </p>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -393,6 +412,7 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({
                         if (file) {
                           sounds.setCustomFireSound(file);
                           setFireFileName(file.name);
+                          setTimeout(() => handlePublishAudioToCloud(), 300);
                         }
                       }}
                       className="hidden"
@@ -401,7 +421,7 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({
                   <button
                     type="button"
                     onClick={() => sounds.playShot()}
-                    className="p-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 border border-amber-500/40 rounded transition"
+                    className="p-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 border border-amber-500/40 rounded transition shrink-0"
                     title="Test Fire Sound"
                   >
                     <Play className="w-3.5 h-3.5" />
@@ -427,6 +447,7 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({
                         if (file) {
                           sounds.setCustomReloadSound(file);
                           setReloadFileName(file.name);
+                          setTimeout(() => handlePublishAudioToCloud(), 300);
                         }
                       }}
                       className="hidden"
@@ -435,7 +456,7 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({
                   <button
                     type="button"
                     onClick={() => sounds.playReload()}
-                    className="p-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 border border-amber-500/40 rounded transition"
+                    className="p-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 border border-amber-500/40 rounded transition shrink-0"
                     title="Test Reload Sound"
                   >
                     <Play className="w-3.5 h-3.5" />
@@ -444,17 +465,51 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({
               </div>
             </div>
 
-            <button
-              type="button"
-              onClick={() => {
-                sounds.resetDefaultSounds();
-                setFireFileName(null);
-                setReloadFileName(null);
-              }}
-              className="text-[10px] text-slate-400 hover:text-amber-400 font-mono flex items-center gap-1 transition"
-            >
-              <RotateCcw className="w-3 h-3" /> Reset Default Weapon Audio
-            </button>
+            {/* Sync to Cloud Action Button & Status Feedback */}
+            <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handlePublishAudioToCloud}
+                  disabled={audioSyncStatus === 'syncing'}
+                  className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded text-[11px] font-bold flex items-center gap-1.5 shadow transition disabled:opacity-50"
+                >
+                  <Music className="w-3.5 h-3.5" />
+                  <span>{audioSyncStatus === 'syncing' ? 'Publishing to Cloud...' : 'Publish Audio to All Devices'}</span>
+                </button>
+
+                {audioSyncStatus === 'synced' && (
+                  <span className="text-emerald-400 text-[10px] font-mono flex items-center gap-1">
+                    <CheckCircle2 className="w-3.5 h-3.5" /> Synced across all devices!
+                  </span>
+                )}
+
+                {audioSyncStatus === 'no_url' && (
+                  <span className="text-amber-400 text-[10px] font-mono flex items-center gap-1">
+                    <AlertCircle className="w-3.5 h-3.5" /> Save Google Apps Script URL above first
+                  </span>
+                )}
+
+                {audioSyncStatus === 'error' && (
+                  <span className="text-red-400 text-[10px] font-mono flex items-center gap-1">
+                    <AlertCircle className="w-3.5 h-3.5" /> Sync error. Check URL
+                  </span>
+                )}
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  sounds.resetDefaultSounds();
+                  setFireFileName(null);
+                  setReloadFileName(null);
+                  handlePublishAudioToCloud();
+                }}
+                className="text-[10px] text-slate-400 hover:text-amber-400 font-mono flex items-center gap-1 transition"
+              >
+                <RotateCcw className="w-3 h-3" /> Reset Default Weapon Audio
+              </button>
+            </div>
           </div>
         </div>
       )}

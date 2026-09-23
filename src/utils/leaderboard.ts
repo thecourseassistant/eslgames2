@@ -100,6 +100,61 @@ export function setAppsScriptUrl(url: string) {
   }
 }
 
+export async function syncAudioToCloud(
+  fireSound?: string | null,
+  reloadSound?: string | null
+): Promise<{ success: boolean; error?: string }> {
+  const scriptUrl = getAppsScriptUrl();
+  if (!scriptUrl || !scriptUrl.startsWith('http')) {
+    return { success: false, error: 'No Google Apps Script Web App URL configured.' };
+  }
+
+  const fireToSave = fireSound || localStorage.getItem('pubg_custom_fire_sound') || '';
+  const reloadToSave = reloadSound || localStorage.getItem('pubg_custom_reload_sound') || '';
+
+  try {
+    const payload = JSON.stringify({
+      action: 'saveAudio',
+      fireSound: fireToSave,
+      reloadSound: reloadToSave,
+    });
+
+    await fetch(scriptUrl, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: payload,
+    });
+
+    return { success: true };
+  } catch (err) {
+    console.error('Failed to sync audio to cloud:', err);
+    return { success: false, error: String(err) };
+  }
+}
+
+export async function fetchCloudAudio(): Promise<{ fireSound?: string; reloadSound?: string } | null> {
+  const scriptUrl = getAppsScriptUrl();
+  if (!scriptUrl || !scriptUrl.startsWith('http')) {
+    return null;
+  }
+
+  try {
+    const resp = await fetch(scriptUrl, { method: 'GET' });
+    if (!resp.ok) return null;
+    const data = await resp.json();
+    if (data && data.status === 'success') {
+      return {
+        fireSound: data.fireSound || undefined,
+        reloadSound: data.reloadSound || undefined,
+      };
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 export function clearLeaderboard(): void {
   try {
     localStorage.setItem(LEADERBOARD_KEY, JSON.stringify([]));
@@ -124,22 +179,46 @@ export function exportLeaderboardToCSV(entries: LeaderboardEntry[]) {
   document.body.removeChild(link);
 }
 
-// Complete ready-to-paste Google Apps Script code for the user:
-export const APPS_SCRIPT_TEMPLATE = `function doPost(e) {
+// Complete ready-to-paste Google Apps Script code with multi-device sound sync support:
+export const APPS_SCRIPT_TEMPLATE = `function doGet(e) {
   try {
-    // OPTION A: If this script is attached directly to your Sheet (Extensions > Apps Script):
-    var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-    
-    // OPTION B: Or if you want to embed your specific Google Sheet URL or ID explicitly:
-    // var ss = SpreadsheetApp.openByUrl("PASTE_YOUR_GOOGLE_SHEET_URL_HERE");
-    // var sheet = ss.getActiveSheet(); // or ss.getSheetByName("Sheet1");
+    var props = PropertiesService.getScriptProperties().getProperties();
+    var result = {
+      status: "success",
+      fireSound: props.fireSound || "",
+      reloadSound: props.reloadSound || ""
+    };
+    return ContentService
+      .createTextOutput(JSON.stringify(result))
+      .setMimeType(ContentService.MimeType.JSON);
+  } catch (err) {
+    return ContentService
+      .createTextOutput(JSON.stringify({ status: "error", message: err.toString() }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+}
 
-    // Ensure header row exists
+function doPost(e) {
+  try {
+    var data = JSON.parse(e.postData.contents);
+    
+    // Check if this is an audio save request from Settings
+    if (data.action === "saveAudio") {
+      var propsToSave = {};
+      if (data.fireSound) propsToSave.fireSound = data.fireSound;
+      if (data.reloadSound) propsToSave.reloadSound = data.reloadSound;
+      PropertiesService.getScriptProperties().setProperties(propsToSave);
+      return ContentService
+        .createTextOutput(JSON.stringify({ status: "success" }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+    
+    // Otherwise, append student leaderboard record
+    var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
     if (sheet.getLastRow() === 0) {
       sheet.appendRow(["Timestamp", "Student Name", "Score", "Accuracy", "Total Time (s)"]);
     }
     
-    var data = JSON.parse(e.postData.contents);
     sheet.appendRow([
       data.date || new Date().toISOString(),
       data.studentName || "Anonymous",
