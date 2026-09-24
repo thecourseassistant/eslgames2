@@ -1,3 +1,6 @@
+import defaultFireSound from '../assets/audio/fire.mp3';
+import defaultReloadSound from '../assets/audio/reload.mp3';
+
 // Authentic Audio Manager with preloaded Web Audio API buffers and zero-latency playback
 class SoundManager {
   private ctx: AudioContext | null = null;
@@ -43,8 +46,8 @@ class SoundManager {
     const savedFire = typeof window !== 'undefined' ? localStorage.getItem('pubg_custom_fire_sound') : null;
     const savedReload = typeof window !== 'undefined' ? localStorage.getItem('pubg_custom_reload_sound') : null;
 
-    const fireUrl = savedFire || '/sounds/kar98k_fire.mp3';
-    const reloadUrl = savedReload || '/sounds/kar98k_reload.mp3';
+    const fireUrl = savedFire || defaultFireSound;
+    const reloadUrl = savedReload || defaultReloadSound;
 
     // 1. Prepare HTML5 Audio fallback pool
     try {
@@ -139,8 +142,8 @@ class SoundManager {
       localStorage.removeItem('pubg_custom_fire_sound');
       localStorage.removeItem('pubg_custom_reload_sound');
     } catch {}
-    this.setCustomFireSound('/sounds/kar98k_fire.mp3');
-    this.setCustomReloadSound('/sounds/kar98k_reload.mp3');
+    this.setCustomFireSound(defaultFireSound);
+    this.setCustomReloadSound(defaultReloadSound);
   }
 
   playShot() {
