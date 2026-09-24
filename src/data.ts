@@ -6,10 +6,11 @@ import earacheImg from './assets/images/target_earache_1789987995505.jpg';
 import stomachImg from './assets/images/target_stomachache_1789988009177.jpg';
 import soreThroatImg from './assets/images/target_sorethroat_1789988018559.jpg';
 import coughImg from './assets/images/target_cough_1789988029017.jpg';
-import pubgBgImg from './assets/images/pubg_battlefield_bg_1789988601520.jpg';
+import deltaForceBgImg from './assets/images/delta_force_bg_1790229210430.jpg';
 import { VocabularyItem } from './types';
 
-export const PUBG_BG = pubgBgImg;
+export const DELTA_FORCE_BG = deltaForceBgImg;
+export const PUBG_BG = deltaForceBgImg;
 
 export const VOCABULARY_LIST: VocabularyItem[] = [
   {

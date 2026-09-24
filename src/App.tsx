@@ -429,8 +429,9 @@ export default function App() {
             <Crosshair className="w-4 h-4 sm:w-5 sm:h-5" />
           </div>
           <div>
-            <h1 className="text-[11px] sm:text-xs md:text-sm font-black tracking-wider uppercase text-amber-400 flex items-center gap-1">
-              BATTLEGROUNDS
+            <h1 className="text-[11px] sm:text-xs md:text-sm font-black tracking-wider uppercase text-amber-400 flex items-center gap-1.5">
+              <span className="line-through decoration-red-500 decoration-2 text-slate-400 opacity-75">BATTLEGROUNDS</span>
+              <span className="text-amber-400 font-black">DELTA FORCE</span>
               <span className="hidden xs:inline text-[8px] sm:text-[9px] font-mono px-1 py-0.2 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40">
                 SNIPER
               </span>
@@ -687,8 +688,9 @@ export default function App() {
                 <Crosshair className="w-6 h-6 sm:w-8 sm:h-8" />
               </div>
 
-              <h2 className="text-xl sm:text-3xl font-black tracking-wider uppercase text-amber-400 mb-0.5 drop-shadow-md">
-                BATTLEGROUNDS
+              <h2 className="text-xl sm:text-3xl font-black tracking-wider uppercase mb-0.5 drop-shadow-md flex items-center justify-center gap-2 flex-wrap">
+                <span className="line-through decoration-red-500 decoration-3 text-slate-400 opacity-75">BATTLEGROUNDS</span>
+                <span className="text-amber-400">DELTA FORCE</span>
               </h2>
               <p className="text-[10px] sm:text-xs font-mono tracking-widest text-slate-300 uppercase mb-3">
                 Illness Vocabulary Night Sniper
