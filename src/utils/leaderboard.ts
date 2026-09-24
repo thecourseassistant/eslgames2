@@ -179,8 +179,19 @@ export function exportLeaderboardToCSV(entries: LeaderboardEntry[]) {
   document.body.removeChild(link);
 }
 
-// Complete ready-to-paste Google Apps Script code with multi-device sound sync support:
-export const APPS_SCRIPT_TEMPLATE = `function doGet(e) {
+// Complete ready-to-paste Google Apps Script code with Google Sheet URL support & multi-device sound sync:
+export const APPS_SCRIPT_TEMPLATE = `// 1. (OPTIONAL) PASTE YOUR GOOGLE SHEET LINK HERE BETWEEN THE QUOTES:
+// If left blank, it automatically uses the spreadsheet this script is attached to.
+var SPREADSHEET_URL = "";
+
+function getTargetSheet() {
+  if (SPREADSHEET_URL && SPREADSHEET_URL.trim().length > 0) {
+    return SpreadsheetApp.openByUrl(SPREADSHEET_URL.trim()).getActiveSheet();
+  }
+  return SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+}
+
+function doGet(e) {
   try {
     var props = PropertiesService.getScriptProperties().getProperties();
     var result = {
@@ -202,7 +213,7 @@ function doPost(e) {
   try {
     var data = JSON.parse(e.postData.contents);
     
-    // Check if this is an audio save request from Settings
+    // Check if this is an audio save request from Leaderboard Settings
     if (data.action === "saveAudio") {
       var propsToSave = {};
       if (data.fireSound) propsToSave.fireSound = data.fireSound;
@@ -213,8 +224,8 @@ function doPost(e) {
         .setMimeType(ContentService.MimeType.JSON);
     }
     
-    // Otherwise, append student leaderboard record
-    var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+    // Otherwise, append student leaderboard record to Google Sheet
+    var sheet = getTargetSheet();
     if (sheet.getLastRow() === 0) {
       sheet.appendRow(["Timestamp", "Student Name", "Score", "Accuracy", "Total Time (s)"]);
     }
